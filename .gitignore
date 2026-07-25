@@ -1,0 +1,4 @@
+photos/
+*.log
+sensors.json
+.DS_Store

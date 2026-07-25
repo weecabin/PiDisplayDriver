@@ -1,0 +1,84 @@
+:root {
+    --photo-width: 70%;    /* Change this to adjust photo area size */
+    --sensor-width: 30%;   /* Remainder auto-fills for sensors */
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #0b0c10;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #ffffff;
+    cursor: none;
+}
+
+.dashboard-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+/* Photo panel utilizing background sizing controls */
+#photo-panel {
+    width: var(--photo-width);
+    height: 100%;
+    background-color: #000000;
+    background-size: cover;          /* Fills the screen by clipping the edges */
+    /* background-size: contain; */  /* Hidden: Fits the whole photo with black bars */
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: background-image 1s ease-in-out;
+}
+
+/* Sidebar panel for your sensor readouts */
+#sensor-panel {
+    width: var(--sensor-width);
+    height: 100%;
+    background-color: #1f2833;
+    box-sizing: border-box;
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    border-left: 2px solid #45f3ff;
+    overflow-y: auto;
+}
+
+.panel-title {
+    font-size: 1.1rem;
+    color: #66fcf1;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 5px;
+    border-bottom: 1px solid #45f3ff;
+    padding-bottom: 10px;
+}
+
+.sensor-card {
+    background: #151a21;
+    padding: 10px;        /* Slightly increased from 2px so the text box doesn't overflow the card */
+    padding-left: 30px;
+    margin-bottom: 5px;
+    border-radius: 8px;
+    border-left: 4px solid #66fcf1;
+}
+
+.sensor-label {
+    font-size: 1.1rem;
+    margin-bottom: 0px;   /* Removed entirely */
+    color: #c5a1ff;
+    text-transform: uppercase;
+    line-height: 1.1;     /* Tightly wraps the label box */
+}
+
+.sensor-value {
+    font-size: 8rem;
+    font-weight: bold;
+    margin-top: 0px;      /* Removed entirely */
+    color: #66fcf1;
+    line-height: 0.85;    /* Shrinks the top/bottom boundary box of your giant font */
+}
+
