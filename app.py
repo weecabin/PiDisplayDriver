@@ -2,6 +2,7 @@ import socket
 import os
 import json
 from threading import Thread
+import subprocess
 
 PORT = 5000
 NEEDS_REFRESH = False
@@ -34,6 +35,21 @@ def build_http_response(status_code, content_type, body_bytes):
     header += "Connection: close\r\n\r\n"
     return header.encode('utf-8') + body_bytes
 
+def send_ok(client_socket):
+    response = (
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/plain\r\n"
+        "\r\n"
+        "OK"
+    )
+    client_socket.sendall(response.encode())
+
+def display_on():
+    subprocess.run(["wlr-randr", "--output", "HDMI-A-2", "--on"],check=False)
+
+def display_off():
+    subprocess.run(["wlr-randr", "--output", "HDMI-A-2", "--off"],check=False)
+
 def handle_client(client_socket):
     """Parses incoming traffic requests and dispatches targeted asset data."""
     try:
@@ -55,7 +71,7 @@ def handle_client(client_socket):
             return
         
         path = request_line[1]
-        
+        #print(f"Request path: {path}")
         # Router Dispatcher Matrix
         if path == '/api/check-refresh':
             # The browser loops here every 3 seconds to see if it should reload
@@ -77,6 +93,8 @@ def handle_client(client_socket):
             return
         elif path == '/' or path == '/index.html':
             target_file = os.path.join(TEMPLATES_DIR, 'index.html')
+        elif path == '/config':
+            target_file = os.path.join(TEMPLATES_DIR, 'config.html')
         elif path.startswith('/static/'):
             filename = path.replace('/static/', '')
             target_file = os.path.join(STATIC_DIR, filename)
@@ -95,6 +113,14 @@ def handle_client(client_socket):
             except Exception as e:
                 response = build_http_response(500, 'application/json', b'{"error":"Photos error"}')
             client_socket.sendall(response)
+            return
+        elif path == "/api/display/on":
+            display_on()
+            send_ok(client_socket)
+            return
+        elif path == "/api/display/off":
+            display_off()
+            send_ok(client_socket)
             return
         else:
             target_file = None

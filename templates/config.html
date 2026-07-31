@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Display Driver Configuration</title>
+
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f4f4f4;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.15);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            margin-top: 0;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+        }
+
+        .row label {
+            width: 180px;
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 18px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .status {
+            font-weight: bold;
+            color: green;
+        }
+
+        .save {
+            display: block;
+            margin: 30px auto 0;
+            padding: 12px 30px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>Display Driver Configuration</h1>
+
+<div class="card">
+
+    <h2>Display Control</h2>
+
+    <div class="row">
+        <label>Current State</label>
+        <span id="displayState" class="status">ON</span>
+    </div>
+
+    <div class="row">
+        <button onclick="displayOn()">Turn ON</button>
+        <button onclick="displayOff()">Turn OFF</button>
+    </div>
+
+</div>
+
+<div class="card">
+
+    <h2>Automatic Schedule</h2>
+
+    <div class="row">
+        <label>
+            <input type="checkbox" id="scheduleEnabled">
+            Enable Schedule
+        </label>
+    </div>
+
+    <div class="row">
+        <label for="displayOnAt">Turn ON At</label>
+        <input type="time" id="displayOnAt" value="07:00">
+    </div>
+
+    <div class="row">
+        <label for="displayOffAt">Turn OFF At</label>
+        <input type="time" id="displayOffAt" value="22:30">
+    </div>
+
+</div>
+
+<button class="save" onclick="saveConfig()">
+    Save Settings
+</button>
+
+
+<script>
+
+function displayOn() {
+    fetch("/api/display/on", {method:"POST"});
+    document.getElementById("displayState").textContent = "ON";
+}
+
+function displayOff() {
+    fetch("/api/display/off", {method:"POST"});
+    document.getElementById("displayState").textContent = "OFF";
+}
+
+function saveConfig() {
+
+    const config = {
+        scheduleEnabled: document.getElementById("scheduleEnabled").checked,
+        displayOnAt: document.getElementById("displayOnAt").value,
+        displayOffAt: document.getElementById("displayOffAt").value
+    };
+
+    fetch("/api/config", {
+        method: "POST",
+        headers: {
+            "Content-Type":"application/json"
+        },
+        body: JSON.stringify(config)
+    })
+    .then(() => alert("Configuration saved."));
+}
+
+</script>
+
+</body>
+</html>
