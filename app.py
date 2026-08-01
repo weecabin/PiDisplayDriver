@@ -125,6 +125,48 @@ def handle_client(client_socket):
         path = request_line[1]
         #print(f"Request path: {path}")
         # Router Dispatcher Matrix
+
+        # ------------------------------------------------------------------
+        # File requests
+        # ------------------------------------------------------------------
+        target_file = None
+        # Serve the main slideshow page
+        if path == '/' or path == '/index.html':
+            target_file = os.path.join(TEMPLATES_DIR, 'index.html')
+        
+        # Serve the configuration page
+        elif path == '/config':
+            target_file = os.path.join(TEMPLATES_DIR, 'config.html')
+
+        # Serve CSS, JavaScript, images, and other static web assets
+        elif path.startswith('/static/'):
+            filename = path.replace('/static/', '')
+            target_file = os.path.join(STATIC_DIR, filename)
+
+        # Serve photo files from the currently configured photo directory
+        elif path.startswith('/photos/'):
+            filename = path.replace('/photos/', '')
+            target_file = os.path.join(PHOTOS_DIR, filename)
+
+        # Serve the current sensor data file
+        elif path == '/sensors.json':
+            target_file = SENSOR_FILE
+
+        # Serve static file requests from target storage directories
+        if target_file is not None:
+            if os.path.isfile(target_file):
+                with open(target_file, 'rb') as f:
+                    body = f.read()
+                response = build_http_response(200, get_content_type(target_file), body)
+            else:
+                response = build_http_response(404, 'text/plain', b'File Not Found')
+                
+            client_socket.sendall(response)
+            return
+
+        # ------------------------------------------------------------------
+        # API requests
+        # ------------------------------------------------------------------
         if path == '/api/check-refresh':
             # The browser loops here every 3 seconds to see if it should reload
             global NEEDS_REFRESH
@@ -136,6 +178,8 @@ def handle_client(client_socket):
             response = build_http_response(200, 'text/plain', body)
             client_socket.sendall(response)
             return
+
+        # API: External request tells the display to reload on its next poll
         elif path == '/api/trigger-refresh':
             # Typing this URL on your remote PC will flip the flag to True
             NEEDS_REFRESH = True
@@ -143,18 +187,8 @@ def handle_client(client_socket):
             response = build_http_response(200, 'text/plain', body)
             client_socket.sendall(response)
             return
-        elif path == '/' or path == '/index.html':
-            target_file = os.path.join(TEMPLATES_DIR, 'index.html')
-        elif path == '/config':
-            target_file = os.path.join(TEMPLATES_DIR, 'config.html')
-        elif path.startswith('/static/'):
-            filename = path.replace('/static/', '')
-            target_file = os.path.join(STATIC_DIR, filename)
-        elif path.startswith('/photos/'):
-            filename = path.replace('/photos/', '')
-            target_file = os.path.join(PHOTOS_DIR, filename)
-        elif path == '/sensors.json':
-            target_file = SENSOR_FILE
+
+        # API: Return a JSON list of available photos
         elif path == '/api/photos':
             # Dynamic API endpoint: Scans target photos directory and sends down JSON array
             try:
@@ -166,16 +200,22 @@ def handle_client(client_socket):
                 response = build_http_response(500, 'application/json', b'{"error":"Photos error"}')
             client_socket.sendall(response)
             return
+
+        # API: Turn the HDMI display on immediately
         elif path == "/api/display/on":
             print("Manual display on")
             display_on()
             send_ok(client_socket)
             return
+
+        # API: Turn the HDMI display off immediately
         elif path == "/api/display/off":
             print("Manual display off")
             display_off()
             send_ok(client_socket)
             return
+        
+        # API: Save updated configuration received from the configuration page
         elif path == "/api/config":
             print("----- CONFIG -----")
             config = json.loads(body)
@@ -191,18 +231,13 @@ def handle_client(client_socket):
             response = build_http_response(200, "text/plain", b"OK")
             client_socket.sendall(response)
             return
-        else:
-            target_file = None
 
-        # Serve static file requests from target storage directories
-        if target_file and os.path.exists(target_file) and os.path.isfile(target_file):
-            with open(target_file, 'rb') as f:
-                body = f.read()
-            response = build_http_response(200, get_content_type(target_file), body)
-        else:
-            response = build_http_response(404, 'text/plain', b'File Not Found')
-            
+        # ------------------------------------------------------------------
+        # Unknown URL
+        # ------------------------------------------------------------------
+        response = build_http_response(404,"text/plain",b"Unknown URL")
         client_socket.sendall(response)
+
     except Exception as e:
         print(f"Network handling exception: {e}")
     finally:
