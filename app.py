@@ -1,6 +1,9 @@
 import socket
 import os
 import json
+import time
+from datetime import datetime
+from threading import Thread
 from threading import Thread
 import subprocess
 
@@ -13,6 +16,7 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
 STATIC_DIR = os.path.join(BASE_DIR, 'static')
 PHOTOS_DIR = os.path.join(BASE_DIR, 'photos')
 SENSOR_FILE = os.path.join(BASE_DIR, 'sensors.json')
+CONFIG_FILE = os.path.join(BASE_DIR, 'config.json')
 
 def get_content_type(filepath):
     """Determine MIME types to make browsers render files accurately."""
@@ -44,6 +48,39 @@ def send_ok(client_socket):
     )
     client_socket.sendall(response.encode())
 
+display_state = None
+
+def display_scheduler():
+    global display_state
+
+    while True:
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                config = json.load(f)
+
+            if config.get("scheduleEnabled", False):
+
+                now = datetime.now().strftime("%H:%M")
+                on_at = config.get("displayOnAt")
+                off_at = config.get("displayOffAt")
+
+                should_be_on = on_at <= now < off_at
+
+                if should_be_on and display_state != "on":
+                    print("Scheduled display ON")
+                    display_on()
+                    display_state = "on"
+
+                elif not should_be_on and display_state != "off":
+                    print("Scheduled display OFF")
+                    display_off()
+                    display_state = "off"
+
+        except Exception as e:
+            print(f"Display scheduler error: {e}")
+
+        time.sleep(60)
+
 def display_on():
     subprocess.run(["wlr-randr", "--output", "HDMI-A-2", "--on"],check=False)
 
@@ -61,11 +98,26 @@ def handle_client(client_socket):
         except UnicodeDecodeError:
             print(f"Ignoring non-UTF8 request: {raw_data[:20]}")
             return
+
         if not request_data:
             return
+
+        headers, body = request_data.split("\r\n\r\n", 1)
+
+        content_length = 0
+        for line in headers.split("\r\n"):
+            if line.lower().startswith("content-length:"):
+                content_length = int(line.split(":")[1].strip())
+
+        while len(body.encode("utf-8")) < content_length:
+            more_data = client_socket.recv(1024)
+            if not more_data:
+                break
+            body += more_data.decode("utf-8")
         
         # Simple extraction of target path line (e.g., GET /static/style.css HTTP/1.1)
-        lines = request_data.split('\r\n')
+        lines = headers.split('\r\n')
+
         request_line = lines[0].split(' ')
         if len(request_line) < 2:
             return
@@ -115,12 +167,29 @@ def handle_client(client_socket):
             client_socket.sendall(response)
             return
         elif path == "/api/display/on":
+            print("Manual display on")
             display_on()
             send_ok(client_socket)
             return
         elif path == "/api/display/off":
+            print("Manual display off")
             display_off()
             send_ok(client_socket)
+            return
+        elif path == "/api/config":
+            print("----- CONFIG -----")
+            config = json.loads(body)
+
+            print(config)
+            print(config["scheduleEnabled"])
+            print(config["displayOnAt"])
+            print(config["displayOffAt"])
+
+            with open(CONFIG_FILE, "w") as f:
+                json.dump(config, f, indent=4)
+
+            response = build_http_response(200, "text/plain", b"OK")
+            client_socket.sendall(response)
             return
         else:
             target_file = None
@@ -162,4 +231,8 @@ if __name__ == '__main__':
     if not os.path.exists(SENSOR_FILE):
         with open(SENSOR_FILE, 'w') as f: f.write('{"CPU_Temp": "45 C", "System_Load": "Minimal"}')
         
+    scheduler_thread = Thread(target=display_scheduler)
+    scheduler_thread.daemon = True
+    scheduler_thread.start()
+
     start_server()
