@@ -121,7 +121,8 @@ def handle_client(client_socket):
         request_line = lines[0].split(' ')
         if len(request_line) < 2:
             return
-        
+            
+        method = request_line[0].upper() #HTTP method, currently "GET" or "POST"
         path = request_line[1]
         #print(f"Request path: {path}")
         # Router Dispatcher Matrix
